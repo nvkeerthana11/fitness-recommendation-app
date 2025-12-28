@@ -1,0 +1,107 @@
+version: "3.9"
+
+services:
+
+  # -------------------- Keycloak --------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.7
+    container_name: keycloak
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8181:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - fitness-network
+
+  # -------------------- RabbitMQ --------------------
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - fitness-network
+
+  # -------------------- PostgreSQL --------------------
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_DB: fitnessdb
+      POSTGRES_USER: fitness_user
+      POSTGRES_PASSWORD: fitness_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - fitness-network
+
+  # -------------------- Eureka Server --------------------
+  eureka-server:
+    build: ./eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    depends_on:
+      - keycloak
+    networks:
+      - fitness-network
+
+  # -------------------- API Gateway --------------------
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - eureka-server
+    networks:
+      - fitness-network
+
+  # -------------------- Fitness Service --------------------
+  fitness-service:
+    build: ./fitness-service
+    container_name: fitness-service
+    depends_on:
+      - eureka-server
+      - postgres
+      - rabbitmq
+    networks:
+      - fitness-network
+
+  # -------------------- Recommendation Service --------------------
+  recommendation-service:
+    build: ./recommendation-service
+    container_name: recommendation-service
+    depends_on:
+      - eureka-server
+      - rabbitmq
+    networks:
+      - fitness-network
+
+  # -------------------- Frontend (Optional) --------------------
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api-gateway
+    networks:
+      - fitness-network
+
+# -------------------- Volumes --------------------
+volumes:
+  keycloak_data:
+  postgres_data:
+
+# -------------------- Network --------------------
+networks:
+  fitness-network:
+    driver: bridge
