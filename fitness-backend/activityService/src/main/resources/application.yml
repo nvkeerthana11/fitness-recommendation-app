@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: activity-service
+  config:
+    import: optional:configserver:http://localhost:8888
+
+
+
+
+
+
+
+
+
+
+
+
+
+
